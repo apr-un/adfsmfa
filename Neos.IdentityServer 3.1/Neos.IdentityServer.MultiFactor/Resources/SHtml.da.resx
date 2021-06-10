@@ -291,4 +291,7 @@
   <data name="HtmlUIMNickNamesMessage" xml:space="preserve">
     <value>Indtast navnet på din biometriske enhed, eller lad tomrummet være, og vælg derefter "Fortsæt"</value>
   </data>
+  <data name="HtmlUIAlertBioNotAvailable" xml:space="preserve">
+    <value>Biometrisk enhed IKKE TILGÆNGELIG eller IKKE KONFIGURERET i operativsystemet! Luk dette browservindue, konfigurer enheden først, og prøv derefter igen, eller brug en anden metode!</value>
+  </data>
 </root>

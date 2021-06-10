@@ -294,4 +294,7 @@ Sie können von jetzt an Multi-Factor-Authentifizierung verwenden.</value>
   <data name="HtmlUIMNickNamesMessage" xml:space="preserve">
     <value>Geben Sie den Namen Ihres biometrischen Geräts ein oder lassen Sie das Vakuum und wählen Sie "Weiter"</value>
   </data>
+  <data name="HtmlUIAlertBioNotAvailable" xml:space="preserve">
+    <value>Biometrisches Gerät NICHT VERFÜGBAR oder im Betriebssystem NICHT KONFIGURIERT! Bitte schließen Sie dieses Browserfenster, konfigurieren Sie zuerst das Gerät und versuchen Sie es dann erneut oder verwenden Sie eine andere Methode!</value>
+  </data>
 </root>

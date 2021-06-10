@@ -294,4 +294,7 @@ Możesz spróbować operacji ponownie, wybierając "Powrót".</value>
   <data name="HtmlUIMNickNamesMessage" xml:space="preserve">
     <value>Wprowadź nazwę urządzenia biometrycznego lub pozostaw puste pole, a następnie wybierz "Kontynuuj"</value>
   </data>
+  <data name="HtmlUIAlertBioNotAvailable" xml:space="preserve">
+    <value>Urządzenie biometryczne NIEDOSTĘPNE lub NIESKONFIGUROWANE w systemie operacyjnym! Proszę zamknąć to okno przeglądarki, skonfigurować najpierw urządzenie i dopiero wtedy spróbować ponownie lub wybrać inna metodę!</value>
+  </data>
 </root>

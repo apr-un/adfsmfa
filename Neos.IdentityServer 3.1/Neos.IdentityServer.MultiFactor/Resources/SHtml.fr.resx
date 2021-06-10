@@ -293,4 +293,7 @@ Vous pourrez utiliser la validation MFA à l'avenir.</value>
   <data name="HtmlUIMNickNamesMessage" xml:space="preserve">
     <value>Entrez le nom de votre dispositif biométrique ou laisser le vide, puis sélectionnez "Continuer"</value>
   </data>
+  <data name="HtmlUIAlertBioNotAvailable" xml:space="preserve">
+    <value>Dispositif biométrique NON DISPONIBLE ou NON CONFIGURÉ dans le système d'exploitation! Veuillez fermer cette fenêtre de navigateur, configurer d'abord l'appareil, puis réessayer ou utiliser une autre méthode!</value>
+  </data>
 </root>

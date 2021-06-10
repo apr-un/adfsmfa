@@ -291,4 +291,7 @@
   <data name="HtmlUIMNickNamesMessage" xml:space="preserve">
     <value>生体認証デバイスの名前を入力するか、ボイドを残して、「続行」を選択します。</value>
   </data>
+  <data name="HtmlUIAlertBioNotAvailable" xml:space="preserve">
+    <value>生体認証デバイスが利用できないか、オペレーティングシステムで構成されていません！ このブラウザウィンドウを閉じて、最初にデバイスを設定してから再試行するか、別の方法を使用してください。</value>
+  </data>
 </root>

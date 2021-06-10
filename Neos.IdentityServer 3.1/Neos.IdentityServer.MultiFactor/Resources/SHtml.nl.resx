@@ -293,4 +293,7 @@ U in de toekomst MFA-validatie gebruiken.</value>
   <data name="HtmlUIMNickNamesMessage" xml:space="preserve">
     <value>Voer de naam van uw biometrische apparaat in of laat de leegte achter en selecteer vervolgens "Doorgaan"</value>
   </data>
+  <data name="HtmlUIAlertBioNotAvailable" xml:space="preserve">
+    <value>Biometrisch apparaat NIET BESCHIKBAAR of NIET GECONFIGUREERD in besturingssysteem! Sluit dit browservenster, configureer eerst het apparaat en probeer het dan opnieuw of gebruik een andere methode!</value>
+  </data>
 </root>

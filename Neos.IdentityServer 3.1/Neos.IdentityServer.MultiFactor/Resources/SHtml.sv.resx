@@ -294,4 +294,7 @@ Du kommer att kunna använda MFA validering i framtiden.</value>
   <data name="HtmlUIMNickNamesMessage" xml:space="preserve">
     <value>Ange namnet på din biometriska enhet eller lämna tomrummet och välj sedan "Fortsätt"</value>
   </data>
+  <data name="HtmlUIAlertBioNotAvailable" xml:space="preserve">
+    <value>Biometrisk enhet INTE TILLGÄNGLIG eller INTE KONFIGURERAD i operativsystemet! Stäng det här webbläsarfönstret, konfigurera enheten först och försök sedan igen eller använd en annan metod!</value>
+  </data>
 </root>
