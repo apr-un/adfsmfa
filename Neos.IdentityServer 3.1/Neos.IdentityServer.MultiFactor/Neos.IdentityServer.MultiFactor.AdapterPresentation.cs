@@ -27,7 +27,7 @@ namespace Neos.IdentityServer.MultiFactor
     public class AdapterPresentationDefault : BaseMFAPresentation
     {
         private const string CR = "\r\n";
-
+        private const bool skipBiometricDuringRegistration = true;
         #region Constructors
         /// <summary>
         /// Constructor implementation
@@ -293,20 +293,86 @@ namespace Neos.IdentityServer.MultiFactor
         /// </summary>
         public override string GetFormPreRenderHtmlRegistration(AuthenticationContext usercontext)
         {
-            string result = "<script type='text/javascript'>" + CR;
+            bool isBio = false;
+            bool isBioRequired = false;
 
+            if (usercontext.EnrollPageStatus == EnrollPageStatus.NewStep && usercontext.EnrollPageID == PreferredMethod.Biometrics)
+            {
+                  IExternalProvider prov = RuntimeAuthProvider.GetProviderInstance(PreferredMethod.Biometrics);
+                  isBio = true;
+                  isBioRequired = prov.Enabled && prov.IsRequired;
+            }
+            string result = "<script type='text/javascript'>" + CR;
+            result += "console.log('BIO: EnrollPageStatus:" + usercontext.EnrollPageStatus + " Method:" + usercontext.EnrollPageID + " -GetFormPreRenderHtmlRegistration-'); " + CR;
             result += "function OnRefreshPost(frm)" + CR;
             result += "{" + CR;
             result += "   document.getElementById('registrationForm').submit();" + CR;
             result += "   return true;" + CR;
             result += "}" + CR;
 
-            result += "function fnbtnclicked(id)" + CR;
+            result += "function fnbtnclicked(id, bio, req)" + CR;
             result += "{" + CR;
+            result += "   var required = (req == 'required' ? true : false); " + CR;
             result += "   var lnk = document.getElementById('##SELECTED##');" + CR;
             result += "   lnk.value = id;" + CR;
+            result += "   if (bio == 'bio' && id == 2 && !(bioCheckCompleted && bioCheckAvailable)) { alert('" + Resources.GetString(ResourcesLocaleKind.Html, "HtmlUIAlertBioNotAvailable") + "'); if (!required) { lnk.value = 6; return true; } } ;" + CR;
+            result += "   return (bio == 'bio' && id == 2 ? bioCheckCompleted && bioCheckAvailable : true);" + CR;
             result += "}" + CR;
 
+            result += " var bioSkipDuringRegistration = " + (skipBiometricDuringRegistration ? "true" : "false") + "; " + CR;
+            result += " var bioCheckCompleted = false; " + CR;
+            result += " var bioCheckAvailable = false; console.log('BIO: Bio check initialized and set to false in -GetFormPreRenderHtmlRegistration-'); " + CR;
+            result += "function SkipBiometricDuringRegistration()" + CR;
+            result += "{" + CR;
+            result += "     if (bioSkipDuringRegistration) " + CR;
+            result += "     {" + CR;
+            result += "         console.log('BIO: Trying to skip Bio enrollment in registration -GetFormPreRenderHtmlRegistration-'); " + CR;
+            result += "         var registerfrm = document.getElementById('registrationForm');" + CR;
+            result += "         var isBio = " + (isBio ? "true" :"false" ) + ";" + CR;
+            result += "         var isBioRequired = " + ( isBioRequired ? "true" : "false" ) + ";" + CR;
+            result += "         if (registerfrm && isBio && !isBioRequired)" + CR;
+            result += "         {" + CR;
+            result += "             var lnk = document.getElementById('##SELECTED##');" + CR;
+            result += "             lnk.value = 6;" + CR; //ignore
+            result += "             console.log('BIO: Bio enrollment ignored, form will be submitted...'); " + CR;
+            result += "             registerfrm.submit();" + CR;
+            result += "         }" + CR;
+            result += "     }" + CR;
+            result += "}" + CR;
+            result += CR;
+            result += "function CheckBiometricsDevice()" + CR;
+            result += "{" + CR;
+            result += "   console.log('BIO: Biometric device check started'); " + CR;
+            result += "   PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable() " + CR;
+            result += "   .then(function(available) { " + CR;
+            result += "                                 if (available) " + CR;
+            result += "                                 { " + CR;
+            result += "                                     console.log('BIO: Biometric device AVAILABLE in current user system'); " + CR;
+            result += "                                     bioCheckAvailable = true; " + CR;
+            result += "                                     bioCheckCompleted = true; " + CR;
+            result += "                                 } " + CR;
+            result += "                                 else " + CR;
+            result += "                                 { " + CR;
+            result += "                                     console.log('BIO: Biometric device NOT AVAILABLE in current user system'); " + CR;
+            result += "                                     bioCheckAvailable = false; " + CR;
+            result += "                                     bioCheckCompleted = true; " + CR;
+            result += "                                 } " + CR;
+            result += "                             }" + CR;
+            result += "   )" + CR;
+            result += "   .catch(function(err) { " + CR;
+            result += "                             console.error(err); " + CR;
+            result += "                        }); " + CR;
+            result += "}";
+            result += CR;
+            result += " CheckBiometricsDevice(); " + CR;
+            result += " if (window.addEventListener)" + CR;
+            result += " {" + CR;
+            result += "     window.addEventListener('load', SkipBiometricDuringRegistration, false);" + CR;
+            result += " }" + CR;
+            result += " else if (window.attachEvent)" + CR;
+            result += " {" + CR;
+            result += "     window.attachEvent('onload', SkipBiometricDuringRegistration);" + CR;
+            result += " }" + CR;
             result += "</script>" + CR;
             return result;
         }
@@ -355,9 +421,23 @@ namespace Neos.IdentityServer.MultiFactor
                             if (itm.Kind != PreferredMethod.Azure)
                             {
                                 if (itm.IsRequired)
+                                {
                                     result += "<div id=\"reqvalue\" class=\"fieldMargin smallText\">- " + itm.GetUIEnrollmentTaskLabel(usercontext) + "</div>";
+                                }
                                 else
-                                    result += "<div id=\"reqvalue\" class=\"fieldMargin smallText\">- " + itm.GetUIEnrollmentTaskLabel(usercontext) + " (*)" + "</div>";
+                                {
+                                    if (itm.Kind != PreferredMethod.Biometrics) //if skipBiometricDuringRegistration setthrn don't show and skip bio - during registration only
+                                    {   
+                                        result += "<div id=\"reqvalue\" class=\"fieldMargin smallText\">- " + itm.GetUIEnrollmentTaskLabel(usercontext) + " (*)" + "</div>";
+                                    }
+                                    else 
+                                    {
+                                        if (!skipBiometricDuringRegistration)
+                                        {
+                                            result += "<div id=\"reqvalue\" class=\"fieldMargin smallText\">- " + itm.GetUIEnrollmentTaskLabel(usercontext) + " (*)" + "</div>";
+                                        }
+                                    }
+                                }
                             }
                         }
                         if (RuntimeAuthProvider.IsPinCodeRequired(usercontext))
@@ -386,7 +466,7 @@ namespace Neos.IdentityServer.MultiFactor
                         result += "<div id=\"pwdMessage\" class=\"fieldMargin smallText\">" + prov.GetUIEnrollmentTaskLabel(usercontext) + Resources.GetString(ResourcesLocaleKind.Html, "HtmlUIEnrollContinue") + "</div><br/>";
                         result += "<table><tr>";
                         result += "<td>";
-                        result += "<input id=\"continueButton\" type=\"submit\" class=\"submit\" name=\"continueButton\" value=\"" + Resources.GetString(ResourcesLocaleKind.Html, "HtmlLabelWVERIFYOTP") + "\" onclick=\"fnbtnclicked(2)\" />";
+                        result += "<input id=\"continueButton\" type=\"submit\" class=\"submit\" name=\"continueButton\" value=\"" + Resources.GetString(ResourcesLocaleKind.Html, "HtmlLabelWVERIFYOTP") + "\" onclick=\"return fnbtnclicked(2" + (prov.Kind == PreferredMethod.Biometrics ? ", 'bio', '" + (prov.IsRequired ? "required" : "") + "'" : "") + ")\" />";
                         result += "</td>";
                         result += "<td style=\"width: 15px\" />";
                         if ((prov.Enabled) && (!prov.IsRequired))
@@ -823,7 +903,7 @@ namespace Neos.IdentityServer.MultiFactor
                 }
             }
 
-            result += "<script>";
+            result += "<script type='text/javascript'>";
             result += "   document.cookie = 'showoptions=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/adfs/';SameSite=Strict;";
             result += "</script>";
 
@@ -847,12 +927,92 @@ namespace Neos.IdentityServer.MultiFactor
         public override string GetFormPreRenderHtmlChooseMethod(AuthenticationContext usercontext)
         {
             string result = "<script type='text/javascript'>" + CR;
-            result += "function fnbtnclicked(id)" + CR;
+            result += "function getCookie(cname)" + CR;
             result += "{" + CR;
-            result += "   var lnk = document.getElementById('##SELECTED##');" + CR;
-            result += "   lnk.value = id;" + CR;
+            result += "    var name = cname + '=';" + CR;
+            result += "    var decodedCookie = decodeURIComponent(document.cookie);" + CR;
+            result += "    var ca = decodedCookie.split(';');" + CR;
+            result += "    for (var i = 0; i < ca.length; i++)" + CR;
+            result += "    {" + CR;
+            result += "        var c = ca[i];" + CR;
+            result += "        while (c.charAt(0) == ' ')" + CR;
+            result += "        {" + CR;
+            result += "            c = c.substring(1);" + CR;
+            result += "        }" + CR;
+            result += "        if (c.indexOf(name) == 0)" + CR;
+            result += "        {" + CR;
+            result += "            return c.substring(name.length, c.length);" + CR;
+            result += "        }" + CR;
+            result += "    }" + CR;
+            result += "    return '';" + CR;
             result += "}" + CR;
             result += CR;
+            result += "function CheckAutoTryOtp()" + CR;
+            result += "{" + CR;
+            result += "    var autotryotp = autoTryOtp;" + CR;
+            result += "    console.log('BIO: CheckAutoTryOtp: ', autotryotp); " + CR;
+            result += "    if (autotryotp == '1')" + CR;
+            result += "    {" + CR;
+            result += "        console.log('BIO: Trying to auto submit OTP option due to autotry cookie present...'); " + CR;
+            result += "        var choosefrm = document.getElementById('ChooseMethodForm');" + CR;
+            result += "        var otpradio = document.getElementById('opt1');" + CR;
+            result += "        if (choosefrm && otpradio)" + CR;
+            result += "        {" + CR;
+            result += "            otpradio.checked = true;" + CR;
+            result += "            console.log('BIO: OTP option autoselected, auto cookie discarded, form will be submitted...'); " + CR;
+            result += "            document.cookie = 'autotryotp=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/adfs/'; " + CR;
+            result += "            choosefrm.submit();" + CR;
+            result += "        }" + CR;
+            result += "    }" + CR;
+            result += "}" + CR;
+            result += CR;
+            result += "function fnbtnclicked(id, bio)" + CR;
+            result += "{" + CR;
+            result += "   var lnk = document.getElementById('##SELECTED##');" + CR;
+            result += "   var opt4 = document.querySelector('input[name=\"selectedradio\"]:checked');" + CR;
+            result += "   var opt4value = opt4 ? opt4.value : '';" + CR;
+            result += "   lnk.value = id;" + CR;
+            result += "   if (bio == 'bio' && id == 0 && opt4value == 4 && !(bioCheckCompleted && bioCheckAvailable)) { alert('" + Resources.GetString(ResourcesLocaleKind.Html, "HtmlUIAlertBioNotAvailable") + "'); } ;" + CR;
+            result += "   return (bio == 'bio' && id == 0 && opt4value == 4 ? bioCheckCompleted && bioCheckAvailable : true);" + CR;
+            result += "}" + CR;
+            result += CR;
+            result += " var autoTryOtp = getCookie('autotryotp');" + CR;
+            result += " var bioCheckCompleted = false; " + CR;
+            result += " var bioCheckAvailable = false; console.log('BIO: Bio check initialized and set to false in -GetFormPreRenderHtmlChooseMethod-'); " + CR;
+            result += "function CheckBiometricsDevice()" + CR;
+            result += "{" + CR;
+            result += "   console.log('BIO: Biometric device check started'); " + CR;
+            result += "   PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable() " + CR;
+            result += "   .then(function(available) { " + CR;
+            result += "                                 if (available) " + CR;
+            result += "                                 { " + CR;
+            result += "                                     console.log('BIO: Biometric device AVAILABLE in current user system'); " + CR;
+            result += "                                     bioCheckAvailable = true; " + CR;
+            result += "                                     bioCheckCompleted = true; " + CR;
+            result += "                                 } " + CR;
+            result += "                                 else " + CR;
+            result += "                                 { " + CR;
+            result += "                                     console.log('BIO: Biometric device NOT AVAILABLE in current user system'); " + CR;
+            result += "                                     bioCheckAvailable = false; " + CR;
+            result += "                                     bioCheckCompleted = true; " + CR;
+            result += "                                 } " + CR;
+            result += "                             }" + CR;
+            result += "   )" + CR;
+            result += "   .catch(function(err) { " + CR;
+            result += "                             console.error(err); " + CR;
+            result += "                        }); " + CR;
+            result += "}";
+            result += CR;
+            result += " CheckBiometricsDevice(); " + CR;
+            result += "  " + CR;
+            result += " if (window.addEventListener)" + CR;
+            result += " {" + CR;
+            result += "     window.addEventListener('load', CheckAutoTryOtp, false);" + CR;
+            result += " }" + CR;
+            result += " else if (window.attachEvent)" + CR;
+            result += " {" + CR;
+            result += "     window.attachEvent('onload', CheckAutoTryOtp);" + CR;
+            result += " }" + CR;
             result += "</script>" + CR;
             return result;
         }
@@ -889,7 +1049,7 @@ namespace Neos.IdentityServer.MultiFactor
 
             result += "<table><tr>";
             result += "<td>";
-            result += "<input id=\"saveButton\" type=\"submit\" class=\"submit\" name=\"Continue\" value=\"" + Resources.GetString(ResourcesLocaleKind.Html, "HtmlCHOOSEOptionSendCode") + "\" onclick=\"fnbtnclicked(0)\" />";
+            result += "<input id=\"saveButton\" type=\"submit\" class=\"submit\" name=\"Continue\" value=\"" + Resources.GetString(ResourcesLocaleKind.Html, "HtmlCHOOSEOptionSendCode") + "\" onclick=\"return fnbtnclicked(0, 'bio')\" />";
             result += "</td>";
             result += "<td style=\"width: 15px\" />";
             result += "<td>";
@@ -1276,7 +1436,7 @@ namespace Neos.IdentityServer.MultiFactor
                         result += "<input id=\"##OPTIONS##\" type=\"checkbox\" name=\"##OPTIONS##\" checked=\"true\" /> " + Resources.GetString(ResourcesLocaleKind.Html, "HtmlUIMAccessOptions");
                     else
                         result += "<input id=\"##OPTIONS##\" type=\"checkbox\" name=\"##OPTIONS##\" /> " + Resources.GetString(ResourcesLocaleKind.Html, "HtmlUIMAccessOptions");
-                    result += "<script>";
+                    result += "<script type='text/javascript'>";
                     result += "   document.cookie = 'showoptions=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/adfs/';SameSite=Strict;";
                     result += "</script>";
                     result += "<br/><br/>";
@@ -1300,6 +1460,53 @@ namespace Neos.IdentityServer.MultiFactor
         {
             string dt = DateTime.Now.AddMilliseconds(Provider.Config.DeliveryWindow).ToString("R");
             string result = "<script type='text/javascript'>" + CR;
+            result += "function getCookie(cname)" + CR;
+            result += "{" + CR;
+            result += "    var name = cname + '=';" + CR;
+            result += "    var decodedCookie = decodeURIComponent(document.cookie);" + CR;
+            result += "    var ca = decodedCookie.split(';');" + CR;
+            result += "    for (var i = 0; i < ca.length; i++)" + CR;
+            result += "    {" + CR;
+            result += "        var c = ca[i];" + CR;
+            result += "        while (c.charAt(0) == ' ')" + CR;
+            result += "        {" + CR;
+            result += "            c = c.substring(1);" + CR;
+            result += "        }" + CR;
+            result += "        if (c.indexOf(name) == 0)" + CR;
+            result += "        {" + CR;
+            result += "            return c.substring(name.length, c.length);" + CR;
+            result += "        }" + CR;
+            result += "    }" + CR;
+            result += "    return '';" + CR;
+            result += "}" + CR;
+            result += CR;
+            result += " var bioCheckCompleted = false; " + CR;
+            result += " var bioCheckAvailable = false; console.log('BIO: Bio check initialized and set to false in -GetFormPreRenderHtmlSendBiometricRequest-'); " + CR;
+            result += "function CheckBiometricsDevice()" + CR;
+            result += "{" + CR;
+            result += "   console.log('BIO: Biometric device check started'); " + CR;
+            result += "   PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable() " + CR;
+            result += "   .then(function(available) { " + CR;
+            result += "                                 if (available) " + CR;
+            result += "                                 { " + CR;
+            result += "                                     console.log('BIO: Biometric device AVAILABLE in current user system'); " + CR;
+            result += "                                     bioCheckAvailable = true; " + CR;
+            result += "                                     bioCheckCompleted = true; " + CR;
+            result += "                                 } " + CR;
+            result += "                                 else " + CR;
+            result += "                                 { " + CR;
+            result += "                                     console.log('BIO: Biometric device NOT AVAILABLE in current user system'); " + CR;
+            result += "                                     bioCheckAvailable = false; " + CR;
+            result += "                                     bioCheckCompleted = true; " + CR;
+            result += "                                 } " + CR;
+            result += "                             }" + CR;
+            result += "   )" + CR;
+            result += "   .catch(function(err) { " + CR;
+            result += "                             console.error(err); " + CR;
+            result += "                        }); " + CR;
+            result += "}";
+            result += CR;
+            result += " CheckBiometricsDevice(); " + CR;
 
             result += "function OnRefreshPost(response)" + CR;
             result += "{" + CR;
@@ -1403,15 +1610,16 @@ namespace Neos.IdentityServer.MultiFactor
                     else
                         result += "<input id=\"##OPTIONS##\" type=\"checkbox\" name=\"##OPTIONS##\" /> " + Resources.GetString(ResourcesLocaleKind.Html, "HtmlUIMAccessOptions");
                     result += "<br/><br/>";
-                    result += "<script>";
+                    result += "<script type='text/javascript'>";
                     result += "   document.cookie = 'showoptions=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/adfs/';SameSite=Strict;";
                     result += "</script>";
                     result += "<br/><br/>";
                 }
                 result += "<input id=\"signin\" type=\"submit\" class=\"submit\" name=\"signin\" value=\"" + Resources.GetString(ResourcesLocaleKind.Html, "HtmlUIMConnexion") + "\" /><br/><br/>";
-                result += "<a class=\"actionLink\" href=\"#\" id=\"nocode\" name=\"nocode\" onclick=\"return SetLinkTitle(refreshbiometricForm, '3')\"; style=\"cursor: pointer;\">" + Resources.GetString(ResourcesLocaleKind.Html, "HtmlUIMNoCode") + "</a>";
-                result += "<input id=\"##SELECTEDLINK##\" type=\"hidden\" name=\"##SELECTEDLINK##\" value=\"0\"/>";
+
             }
+            result += "<a class=\"actionLink\" href=\"#\" id=\"nocode\" name=\"nocode\" onclick=\"return SetLinkTitle(refreshbiometricForm, '3')\"; style=\"cursor: pointer;\">" + Resources.GetString(ResourcesLocaleKind.Html, "HtmlUIMNoCode") + "</a>";
+            result += "<input id=\"##SELECTEDLINK##\" type=\"hidden\" name=\"##SELECTEDLINK##\" value=\"0\"/>";
             result += GetFormHtmlMessageZone(usercontext);
 
             result += "<input id=\"context\" type=\"hidden\" name=\"Context\" value=\"%Context%\"/>";
@@ -1706,7 +1914,7 @@ namespace Neos.IdentityServer.MultiFactor
                         MFAUser reg = RuntimeRepository.GetMFAUser(Provider.Config, usercontext.UPN);
                         result += "<br/>";
                         if (reg != null)
-                            result += "<input id=\"##REMEMBER##\" type=\"checkbox\" name=\"##REMEMBER##\" " + ((reg.PreferredMethod == PreferredMethod.Code) ? "checked=\"checked\"> " : "> ") + Resources.GetString(ResourcesLocaleKind.Html, "HtmlCHOOSEOptionRemember2") + "<br/>";
+                            result += "<input id=\"##REMEMBER##\" type=\"checkbox\" name=\"##REMEMBER##\"" + ((reg.PreferredMethod == PreferredMethod.Code) ? " checked=\"checked\"> " : "> ") + Resources.GetString(ResourcesLocaleKind.Html, "HtmlCHOOSEOptionRemember2") + "<br/>";
                         else
                             result += "<input id=\"##REMEMBER##\" type=\"checkbox\" name=\"##REMEMBER##\" checked=\"checked\"> " + Resources.GetString(ResourcesLocaleKind.Html, "HtmlCHOOSEOptionRemember2") + "<br/>";
                     }
@@ -2224,11 +2432,12 @@ namespace Neos.IdentityServer.MultiFactor
             result += "}" + CR;
             result += CR;
 
-            result += "function fnbtnclicked(id)" + CR;
+            result += "function fnbtnclicked(id, bio)" + CR;
             result += "{" + CR;
             result += "   var lnk = document.getElementById('##SELECTED##');" + CR;
             result += "   lnk.value = id;" + CR;
-            result += "   return true;" + CR;
+            result += "   if (bio == 'bio' && (id == 2 || id == 6) && !(bioCheckCompleted && bioCheckAvailable)) { alert('" + Resources.GetString(ResourcesLocaleKind.Html, "HtmlUIAlertBioNotAvailable") + "'); } ;" + CR;
+            result += "   return (bio == 'bio' && (id == 2 || id == 6) ? bioCheckCompleted && bioCheckAvailable : true);" + CR;
             result += "}";
             result += CR;
 
@@ -2286,6 +2495,33 @@ namespace Neos.IdentityServer.MultiFactor
             result += "   return true;" + CR;
             result += "}";
             result += CR;
+            result += " var bioCheckCompleted = false; " + CR;
+            result += " var bioCheckAvailable = false; console.log('BIO: Bio check initialized and set to false in -GetFormPreRenderHtmlEnrollBio-'); " + CR; 
+            result += "function CheckBiometricsDevice()" + CR;
+            result += "{" + CR;
+            result += "   console.log('BIO: Biometric device check started'); " + CR;
+            result += "   PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable() " + CR;
+            result += "   .then(function(available) { " + CR;
+            result += "                                 if (available) " + CR;
+            result += "                                 { " + CR;
+            result += "                                     console.log('BIO: Biometric device AVAILABLE in current user system'); " + CR;
+            result += "                                     bioCheckAvailable = true; " + CR;
+            result += "                                     bioCheckCompleted = true; " + CR;
+            result += "                                 } " + CR;
+            result += "                                 else " + CR;
+            result += "                                 { " + CR;
+            result += "                                     console.log('BIO: Biometric device NOT AVAILABLE in current user system'); " + CR;
+            result += "                                     bioCheckAvailable = false; " + CR;
+            result += "                                     bioCheckCompleted = true; " + CR;
+            result += "                                 } " + CR;
+            result += "                             }" + CR;
+            result += "   )" + CR;
+            result += "   .catch(function(err) { " + CR;
+            result += "                             console.error(err); " + CR;
+            result += "                        }); " + CR;
+            result += "}";
+            result += CR;
+            result += " CheckBiometricsDevice(); " + CR;
 
             if (usercontext.WizPageID == 1)
             {
@@ -2338,9 +2574,9 @@ namespace Neos.IdentityServer.MultiFactor
                                 if (i <= 2)
                                 {
                                     if ((auth != null) && auth.UseNickNames)
-                                        result += "<input id=\"optiongroup" + i.ToString() + "\" name=\"##OPTIONITEM##\" type=\"radio\" value=\"" + cr.CredentialID + "\" /> <b>" + cr.CredType + " " + cr.NickName + "</b> " + cr.RegDate.ToShortDateString() + " <b>(" + cr.SignatureCounter.ToString() + ")</b><br/>";
+                                        result += "<input id=\"optiongroup" + i.ToString() + "\" name=\"##OPTIONITEM##\" type=\"radio\" value=\"" + cr.CredentialID + "\" /> <b title='" + (cr.CredType.ToLower() =="tpm" ? "Windows/Linux ":"") + cr.CredType + "'>" + (string.IsNullOrEmpty(cr.NickName) ? cr.CredType : "") + " " + cr.NickName + "</b> " + cr.RegDate.ToShortDateString() + " <b>(" + cr.SignatureCounter.ToString() + ")</b><br/>";
                                     else
-                                        result += "<input id=\"optiongroup" + i.ToString() + "\" name=\"##OPTIONITEM##\" type=\"radio\" value=\"" + cr.CredentialID + "\" /> <b>" + cr.CredType + "</b> " + cr.RegDate.ToShortDateString() + " <b>(" + cr.SignatureCounter.ToString() + ")</b><br/>";
+                                        result += "<input id=\"optiongroup" + i.ToString() + "\" name=\"##OPTIONITEM##\" type=\"radio\" value=\"" + cr.CredentialID + "\" /> <b>" + (cr.CredType.ToLower() == "tpm" ? "Windows/Linux " : "") + cr.CredType + "</b> " + cr.RegDate.ToShortDateString() + " <b>(" + cr.SignatureCounter.ToString() + ")</b><br/>";
                                 }
                                 if (i==3)
                                     result += "<p style = \"text-indent:20px;\" >More...</p>";
@@ -2372,9 +2608,9 @@ namespace Neos.IdentityServer.MultiFactor
                     result += "<table><tr>";
                     result += "<td>";
                     if ((auth != null) && auth.UseNickNames)
-                        result += "<input id=\"nextButton\" type=\"submit\" class=\"submit\" name=\"nextButton\" value=\"" + Resources.GetString(ResourcesLocaleKind.Html, "HtmlLabelWVERIFYOTP") + "\" onclick=\"fnbtnclicked(6)\" />";
+                        result += "<input id=\"nextButton\" type=\"submit\" class=\"submit\" name=\"nextButton\" value=\"" + Resources.GetString(ResourcesLocaleKind.Html, "HtmlLabelWVERIFYOTP") + "\" onclick=\"return fnbtnclicked(6, 'bio')\" />";
                     else
-                        result += "<input id=\"nextButton\" type=\"submit\" class=\"submit\" name=\"nextButton\" value=\"" + Resources.GetString(ResourcesLocaleKind.Html, "HtmlLabelWVERIFYOTP") + "\" onclick=\"fnbtnclicked(2)\" />";
+                        result += "<input id=\"nextButton\" type=\"submit\" class=\"submit\" name=\"nextButton\" value=\"" + Resources.GetString(ResourcesLocaleKind.Html, "HtmlLabelWVERIFYOTP") + "\" onclick=\"return fnbtnclicked(2, 'bio')\" />";
                     result += "</td>";
                     result += "<td style=\"width: 15px\" />";
                     result += "<td>";
@@ -2405,6 +2641,12 @@ namespace Neos.IdentityServer.MultiFactor
                     result += "<br/>";
                     result += GetFormHtmlMessageZone(usercontext);
                     result += "<br/>";
+                    string dtBioVisited = DateTime.Now.AddDays(30).ToString("R");
+                    //HACK: add cookie bioregisteredandvisited (30days) after correct bio log in, which will be autorefreshed 
+                    result += "<script type='text/javascript'>";
+                    result += "      document.cookie = 'bioregisteredandvisited=1;expires=" + dtBioVisited + ";path=/adfs/';" + CR;
+                    result += "      console.log('BIO: Bio correctly visited cookie set on registation, with expiration in 30d: " + dtBioVisited + "');" + CR;
+                    result += "</script>";
                     result += "<input id=\"finishButton\" type=\"submit\" class=\"submit\" name=\"finishButton\" value=\"" + Resources.GetString(ResourcesLocaleKind.Html, "HtmlLabelVERIFYOTPOK") + "\" onclick=\"fnbtnclicked(1)\" />";
                     result += "<br/>";
                     break;
@@ -2439,9 +2681,9 @@ namespace Neos.IdentityServer.MultiFactor
                                 if (i <= 10)
                                 {
                                     if ((auth != null) && auth.UseNickNames)
-                                        result += "<input id=\"optiongroup" + i.ToString() + "\" name=\"##OPTIONITEM##\" type=\"radio\" value=\"" + cr.CredentialID + "\" onchange=\"SetLinkState(true, '" + cr.CredentialID + "')\" /> <b>" + cr.CredType + " " + cr.NickName + "</b> " + cr.RegDate.ToShortDateString() + " <b>(" + cr.SignatureCounter.ToString() + ")</b> <br/>";
+                                        result += "<input id=\"optiongroup" + i.ToString() + "\" name=\"##OPTIONITEM##\" type=\"radio\" value=\"" + cr.CredentialID + "\" onchange=\"SetLinkState(true, '" + cr.CredentialID + "')\" /> <b title='" + (cr.CredType.ToLower() == "tpm" ? "Windows/Linux " : "") + cr.CredType + "'>" + (string.IsNullOrEmpty(cr.NickName) ? cr.CredType : "") + " " + cr.NickName + "</b> " + cr.RegDate.ToShortDateString() + " <b>(" + cr.SignatureCounter.ToString() + ")</b> <br/>";
                                     else
-                                        result += "<input id=\"optiongroup" + i.ToString() + "\" name=\"##OPTIONITEM##\" type=\"radio\" value=\"" + cr.CredentialID + "\" onchange=\"SetLinkState(true, '" + cr.CredentialID + "')\" /> <b>" + cr.CredType + "</b> " + cr.RegDate.ToShortDateString() + " <b>(" + cr.SignatureCounter.ToString() + ")</b> <br/>";
+                                        result += "<input id=\"optiongroup" + i.ToString() + "\" name=\"##OPTIONITEM##\" type=\"radio\" value=\"" + cr.CredentialID + "\" onchange=\"SetLinkState(true, '" + cr.CredentialID + "')\" /> <b>" + (cr.CredType.ToLower() == "tpm" ? "Windows/Linux " : "") + cr.CredType + "</b> " + cr.RegDate.ToShortDateString() + " <b>(" + cr.SignatureCounter.ToString() + ")</b> <br/>";
                                 }
                                 i++;
                             }
@@ -2451,9 +2693,9 @@ namespace Neos.IdentityServer.MultiFactor
                         result += "<table><tr>";
                         result += "<td>";
                         if ((auth != null) && auth.UseNickNames)
-                            result += "<input id=\"nextButton\" type=\"submit\" class=\"submit\" name=\"nextButton\" value=\"" + Resources.GetString(ResourcesLocaleKind.Html, "HtmlLabelWVERIFYOTP") + "\" onclick=\"fnbtnclicked(6)\" />";
+                            result += "<input id=\"nextButton\" type=\"submit\" class=\"submit\" name=\"nextButton\" value=\"" + Resources.GetString(ResourcesLocaleKind.Html, "HtmlLabelWVERIFYOTP") + "\" onclick=\"return fnbtnclicked(6, 'bio')\" />"; //TODO: check if bio?
                         else
-                            result += "<input id=\"nextButton\" type=\"submit\" class=\"submit\" name=\"nextButton\" value=\"" + Resources.GetString(ResourcesLocaleKind.Html, "HtmlLabelWVERIFYOTP") + "\" onclick=\"fnbtnclicked(2)\" />";
+                            result += "<input id=\"nextButton\" type=\"submit\" class=\"submit\" name=\"nextButton\" value=\"" + Resources.GetString(ResourcesLocaleKind.Html, "HtmlLabelWVERIFYOTP") + "\" onclick=\"return fnbtnclicked(2, 'bio')\" />";
                         result += "</td>";
                         result += "<td style=\"width: 15px\" />";
                         result += "<td>";

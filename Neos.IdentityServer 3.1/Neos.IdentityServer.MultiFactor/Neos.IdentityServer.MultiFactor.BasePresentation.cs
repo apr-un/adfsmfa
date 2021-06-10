@@ -1670,9 +1670,42 @@ namespace Neos.IdentityServer.MultiFactor
         /// </summary>
         public override string GetWebAuthNAssertionScript(AuthenticationContext usercontext)
         {
+            string dt = DateTime.Now.AddMinutes(10).ToString("R");
+            string dtBioVisited = DateTime.Now.AddDays(30).ToString("R");
             string result = GetWebAuthNSharedScript(usercontext);
             result += "async function LoginWebAuthN(frm)" + CR;
             result += "{" + CR;
+            //HACK: check cookie bioregisteredandvisited (30days) which was set after correct bio log in, which will be then autorefreshed 
+            result += "   if (bioCheckCompleted) { " + CR;
+            result += "         if (!bioCheckAvailable) { " + CR;
+            result += "             console.log('BIO: Biometric device NOT AVAILABLE or NOT CONFIGURED in operating system! Please close this browser window, configure the device first and then try again or use another method!'); " + CR;
+            result += "             document.cookie = 'autotryotp=1;expires=" + dt + ";path=/adfs/';" + CR;
+            result += "             console.log('BIO: Auto try OTP cookie set, with expiration in 10m: " + dt + "');" + CR;
+            result += "             return SetLinkTitle(refreshbiometricForm, '3'); " + CR;
+            result += "         } " + CR;
+            result += "         else " + CR;
+            result += "         {" + CR;
+            result += "             console.log('BIO: Biometric device AVAILABLE and configured in system - checking if it was used by cookie!'); " + CR;
+            result += "             var bioWasUsedBefore = getCookie('bioregisteredandvisited');" + CR;
+            result += "             if (bioWasUsedBefore == '1') " + CR;
+            result += "             {" + CR;
+            result += "                 console.log('BIO: Biometric device was correctly used in this system - cookie present, continuing normally to Bio check!'); " + CR;
+            result += "             }" + CR;
+            result += "             else " + CR;
+            result += "             {" + CR; 
+            result += "                 console.log('BIO: Biometric device WAS NOT correctly used in this system - cookie not present! Should default to OTP!'); " + CR;
+            result += "                 //var confirmContinue = confirm('Biometric cookie is not present, so biometric device is probably not correctly set - press OK to continue with biometrics anyway (with possible weird message about USB key) or Cancel to continue with OTP');" + CR;
+            result += "                 var confirmContinue = false; console.log('BIO: Biometric cookie is not present, so biometric device is probably not correctly set - will continue with forced OTP as user confirmation is disabled');" + CR;
+            result += "                 if (!confirmContinue) " + CR;
+            result += "                 {" + CR;
+            result += "                     document.cookie = 'autotryotp=1;expires=" + dt + ";path=/adfs/';" + CR;
+            result += "                     console.log('BIO: Auto try OTP cookie set because bioregisteredandvisitedcookie is not present and user choose to cancel bio check, with expiration in 10m: " + dt + "');" + CR;
+            result += "                     return SetLinkTitle(refreshbiometricForm, '3'); " + CR;
+            result += "                 }" + CR;
+            result += "                 console.log('BIO: User choose to continue to bio check'); " + CR;
+            result += "             }" + CR;
+            result += "         };" + CR;
+            result += "   };" + CR;
             result += "   frm.preventDefault();" + CR;
             result += "   if (detectWebAuthNSupport() === true)" + CR;
             result += "   {" + CR;
@@ -1709,6 +1742,9 @@ namespace Neos.IdentityServer.MultiFactor
             result += "         SetJsError(e.message);" + CR;
             result += "         return false;" + CR;
             result += "      }" + CR;
+            //HACK: add cookie bioregisteredandvisited (30days) after correct bio log in, which will be autorefreshed 
+            result += "      document.cookie = 'bioregisteredandvisited=1;expires=" + dtBioVisited + ";path=/adfs/';" + CR;
+            result += "      console.log('BIO: Bio correctly visited cookie set, with expiration in 30d: " + dtBioVisited + "');" + CR;
             result += "      return true;" + CR;
             result += "   }" + CR;
             result += "   else" + CR;
