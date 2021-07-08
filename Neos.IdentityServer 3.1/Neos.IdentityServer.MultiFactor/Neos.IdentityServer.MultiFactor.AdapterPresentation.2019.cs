@@ -15,6 +15,7 @@
 // https://github.com/neos-sdi/adfsmfa                                                                                                                                                      //
 //                                                                                                                                                                                          //
 //******************************************************************************************************************************************************************************************//
+#define samesite
 using Microsoft.IdentityServer.Web.Authentication.External;
 using Neos.IdentityServer.MultiFactor.Common;
 using Neos.IdentityServer.MultiFactor.Resources;
@@ -947,7 +948,11 @@ namespace Neos.IdentityServer.MultiFactor
             }
 
             result += "<script>";
+#if samesite
             result += "   document.cookie = 'showoptions=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/adfs/;SameSite=Strict;';";
+#else
+            result += "   document.cookie = 'showoptions=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/adfs/;';";
+#endif
             result += "</script>";
 
             result += "<br/>";
@@ -961,9 +966,9 @@ namespace Neos.IdentityServer.MultiFactor
             result += "</form>";
             return result;
         }
-        #endregion
+#endregion
 
-        #region ChooseMethod
+#region ChooseMethod
         /// <summary>
         /// GetFormPreRenderHtmlChooseMethod implementation
         /// </summary>
@@ -1123,9 +1128,9 @@ namespace Neos.IdentityServer.MultiFactor
             return idMethod;
 
         }
-        #endregion
+#endregion
 
-        #region ChangePassword
+#region ChangePassword
         /// <summary>
         /// GetFormPreRenderHtmlChangePassword implementation
         /// </summary>
@@ -1225,9 +1230,9 @@ namespace Neos.IdentityServer.MultiFactor
             }
             return result;
         }
-        #endregion
+#endregion
 
-        #region Bypass
+#region Bypass
         /// <summary>
         /// GetFormPreRenderHtmlBypass implementation
         /// </summary>
@@ -1301,9 +1306,9 @@ namespace Neos.IdentityServer.MultiFactor
             result += "</form>";
             return result;
         }
-        #endregion
+#endregion
 
-        #region Locking
+#region Locking
         /// <summary>
         /// GetFormPreRenderHtmlLocking implementation
         /// </summary>
@@ -1391,9 +1396,9 @@ namespace Neos.IdentityServer.MultiFactor
             result += "</form>";
             return result;
         }
-        #endregion
+#endregion
 
-        #region CodeRequest
+#region CodeRequest
         /// <summary>
         /// GetFormPreRenderHtmlSendCodeRequest implementation
         /// </summary>
@@ -1428,11 +1433,19 @@ namespace Neos.IdentityServer.MultiFactor
             result += "   {" + CR;
             result += "      if (opt.checked)" + CR;
             result += "      {" + CR;
-            result += "         document.cookie = 'showoptions=1;expires=" + dt + ";path=/adfs/;SameSite=Strict;';" + CR;
+#if samesite
+            result += "         document.cookie = 'showoptions=1;expires=" + dt + ";path=/adfs/;SameSite=Strict;';";
+#else
+            result += "         document.cookie = 'showoptions=1;expires=" + dt + ";path=/adfs/;';";
+#endif
             result += "      }" + CR;
             result += "      else" + CR;
             result += "      {" + CR;
-            result += "         document.cookie = 'showoptions=;expires=Thu, 01 Jan 1970 00:00:01 GMT;SameSite=Strict;';" + CR;
+#if samesite
+            result += "         document.cookie = 'showoptions=;expires=Thu, 01 Jan 1970 00:00:01 GMT;SameSite=Strict;';";
+#else
+            result += "         document.cookie = 'showoptions=;expires=Thu, 01 Jan 1970 00:00:01 GMT;';";
+#endif
             result += "      }" + CR;
             result += "   }" + CR;
             result += "   return true;" + CR;
@@ -1484,7 +1497,11 @@ namespace Neos.IdentityServer.MultiFactor
                     else
                         result += "<input id=\"##OPTIONS##\" type=\"checkbox\" name=\"##OPTIONS##\" /> " + Resources.GetString(ResourcesLocaleKind.Html, "HtmlUIMAccessOptions");
                     result += "<script>";
+#if samesite
                     result += "   document.cookie = 'showoptions=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/adfs/;SameSite=Strict;';";
+#else
+                    result += "   document.cookie = 'showoptions=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/adfs/;';";
+#endif
                     result += "</script>";
                     result += "<br/><br/>";
                 }
@@ -1660,7 +1677,11 @@ namespace Neos.IdentityServer.MultiFactor
                         result += "<input id=\"##OPTIONS##\" type=\"checkbox\" name=\"##OPTIONS##\" /> " + Resources.GetString(ResourcesLocaleKind.Html, "HtmlUIMAccessOptions");
                     result += "<br/><br/>";
                     result += "<script>";
+#if samesite
                     result += "   document.cookie = 'showoptions=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/adfs/;SameSite=Strict;';";
+#else
+                    result += "   document.cookie = 'showoptions=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/adfs/;';";
+#endif
                     result += "</script>";
                     result += "<br/><br/>";
                 }
@@ -1679,9 +1700,9 @@ namespace Neos.IdentityServer.MultiFactor
             result += "</form>";
             return result;
         }
-        #endregion
+#endregion
 
-        #region InvitationRequest
+#region InvitationRequest
         /// <summary>
         /// GetFormPreRenderHtmlSendAdministrativeRequest implementation
         /// </summary>
@@ -1734,9 +1755,9 @@ namespace Neos.IdentityServer.MultiFactor
             result += "</form>";
             return result;
         }
-        #endregion
+#endregion
 
-        #region SendKeyRequest
+#region SendKeyRequest
         /// <summary>
         /// GetFormPreRenderHtmlSendKeyRequest method implementation
         /// </summary>
@@ -1789,9 +1810,9 @@ namespace Neos.IdentityServer.MultiFactor
             result += "</form>";
             return result;
         }
-        #endregion
+#endregion
 
-        #region EnrollOTP
+#region EnrollOTP
         /// <summary>
         /// GetFormPreRenderHtmlEnrollOTP method implementation
         /// </summary>
@@ -2046,9 +2067,9 @@ namespace Neos.IdentityServer.MultiFactor
             result += "</form>";
             return result;
         }
-        #endregion
+#endregion
 
-        #region EnrollEmail
+#region EnrollEmail
         /// <summary>
         /// GetFormPreRenderHtmlEnrollEmail method implementation
         /// </summary>
@@ -2257,9 +2278,9 @@ namespace Neos.IdentityServer.MultiFactor
             result += "</form>";
             return result;
         }
-        #endregion
+#endregion
 
-        #region EnrollPhone
+#region EnrollPhone
         /// <summary>
         /// GetFormPreRenderHtmlEnrollPhone method implementation
         /// </summary>
@@ -2473,9 +2494,9 @@ namespace Neos.IdentityServer.MultiFactor
             result += "</form>";
             return result;
         }
-        #endregion
+#endregion
 
-        #region EnrollBiometrics
+#region EnrollBiometrics
         /// <summary>
         /// GetFormPreRenderHtmlEnrollBio method implementation
         /// </summary>
@@ -2793,9 +2814,9 @@ namespace Neos.IdentityServer.MultiFactor
             result += "</form>";
             return result;
         }
-        #endregion
+#endregion
 
-        #region EnrollPINCode
+#region EnrollPINCode
         /// <summary>
         /// GetFormPreRenderHtmlEnrollPinCode method implementation
         /// </summary>
@@ -2927,9 +2948,9 @@ namespace Neos.IdentityServer.MultiFactor
             result += "</form>";
             return result;
         }
-        #endregion
+#endregion
 
-        #region Private methods
+#region Private methods
         /// <summary>
         /// GetPartHtmlSelectMethod method ipmplmentation
         /// </summary>
@@ -2966,7 +2987,7 @@ namespace Neos.IdentityServer.MultiFactor
             result += "</select><br/>";
             return result;
         }
-        #endregion
+#endregion
     }
 }
 
