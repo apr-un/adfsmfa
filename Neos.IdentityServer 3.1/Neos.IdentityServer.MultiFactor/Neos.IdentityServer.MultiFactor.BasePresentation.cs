@@ -15,6 +15,7 @@
 // https://github.com/neos-sdi/adfsmfa                                                                                                                                                      //
 //                                                                                                                                                                                          //
 //******************************************************************************************************************************************************************************************//
+#define samesite
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -1178,6 +1179,15 @@ namespace Neos.IdentityServer.MultiFactor
             return Resources.GetString(ResourcesLocaleKind.Titles, "TitlePageTitle");
         }
 
+        public string PrepareJavascriptAlertMessage(string message) 
+        {
+            if (!string.IsNullOrEmpty(message))
+            {
+                message = message.Replace(Environment.NewLine, " ").Replace("\n", " ").Replace("\r", " ").Replace("'", "\'"); // space instead empty string for better reading
+            }
+            
+            return message;
+        }
         /// <summary>
         /// GetFormHtmlMessageZone method implementation
         /// </summary>
@@ -1716,15 +1726,19 @@ namespace Neos.IdentityServer.MultiFactor
         public override string GetWebAuthNAssertionScript(AuthenticationContext usercontext)
         {
             string dt = DateTime.Now.AddMinutes(10).ToString("R");
-            string dtBioVisited = DateTime.Now.AddDays(30).ToString("R");
+            string dtBioVisited = DateTime.Now.AddDays(90).ToString("R");
             string result = GetWebAuthNSharedScript(usercontext);
             result += "async function LoginWebAuthN(frm)" + CR;
             result += "{" + CR;
-            //HACK: check cookie bioregisteredandvisited (30days) which was set after correct bio log in, which will be then autorefreshed 
+            //HACK: check cookie bioregisteredandvisited (90days) which was set after correct bio log in, which will be then autorefreshed 
             result += "   if (bioCheckCompleted) { " + CR;
             result += "         if (!bioCheckAvailable) { " + CR;
             result += "             console.log('BIO: Biometric device NOT AVAILABLE or NOT CONFIGURED in operating system! Please close this browser window, configure the device first and then try again or use another method!'); " + CR;
+#if samesite
+            result += "             document.cookie = 'autotryotp=1;expires=" + dt + ";path=/adfs/;SameSite=Strict;';" + CR;
+#else
             result += "             document.cookie = 'autotryotp=1;expires=" + dt + ";path=/adfs/';" + CR;
+#endif
             result += "             console.log('BIO: Auto try OTP cookie set, with expiration in 10m: " + dt + "');" + CR;
             result += "             return SetLinkTitle(refreshbiometricForm, '3'); " + CR;
             result += "         } " + CR;
@@ -1743,7 +1757,11 @@ namespace Neos.IdentityServer.MultiFactor
             result += "                 var confirmContinue = false; console.log('BIO: Biometric cookie is not present, so biometric device is probably not correctly set - will continue with forced OTP as user confirmation is disabled');" + CR;
             result += "                 if (!confirmContinue) " + CR;
             result += "                 {" + CR;
+#if samesite
+            result += "                     document.cookie = 'autotryotp=1;expires=" + dt + ";path=/adfs/;SameSite=Strict;';" + CR;
+#else
             result += "                     document.cookie = 'autotryotp=1;expires=" + dt + ";path=/adfs/';" + CR;
+#endif
             result += "                     console.log('BIO: Auto try OTP cookie set because bioregisteredandvisitedcookie is not present and user choose to cancel bio check, with expiration in 10m: " + dt + "');" + CR;
             result += "                     return SetLinkTitle(refreshbiometricForm, '3'); " + CR;
             result += "                 }" + CR;
@@ -1787,9 +1805,13 @@ namespace Neos.IdentityServer.MultiFactor
             result += "         SetJsError(e.message);" + CR;
             result += "         return false;" + CR;
             result += "      }" + CR;
-            //HACK: add cookie bioregisteredandvisited (30days) after correct bio log in, which will be autorefreshed 
+            //HACK: add cookie bioregisteredandvisited (90days) after correct bio log in, which will be autorefreshed 
+#if samesite
+            result += "      document.cookie = 'bioregisteredandvisited=1;expires=" + dtBioVisited + ";path=/adfs/;SameSite=Strict;';" + CR;
+#else
             result += "      document.cookie = 'bioregisteredandvisited=1;expires=" + dtBioVisited + ";path=/adfs/';" + CR;
-            result += "      console.log('BIO: Bio correctly visited cookie set, with expiration in 30d: " + dtBioVisited + "');" + CR;
+#endif
+            result += "      console.log('BIO: Bio correctly visited cookie set, with expiration in 90d: " + dtBioVisited + "');" + CR;
             result += "      return true;" + CR;
             result += "   }" + CR;
             result += "   else" + CR;

@@ -316,7 +316,7 @@ namespace Neos.IdentityServer.MultiFactor
             result += "   var required = (req == 'required' ? true : false); " + CR;
             result += "   var lnk = document.getElementById('##SELECTED##');" + CR;
             result += "   lnk.value = id;" + CR;
-            result += "   if (bio == 'bio' && id == 2 && !(bioCheckCompleted && bioCheckAvailable)) { alert('" + Resources.GetString(ResourcesLocaleKind.Html, "HtmlUIAlertBioNotAvailable") + "'); if (!required) { lnk.value = 6; return true; } } ;" + CR;
+            result += "   if (bio == 'bio' && id == 2 && !(bioCheckCompleted && bioCheckAvailable)) { alert('" + PrepareJavascriptAlertMessage(Resources.GetString(ResourcesLocaleKind.Html, "HtmlUIAlertBioNotAvailable")) + "'); if (!required) { lnk.value = 6; return true; } } ;" + CR;
             result += "   return (bio == 'bio' && id == 2 ? bioCheckCompleted && bioCheckAvailable : true);" + CR;
             result += "}" + CR;
 
@@ -427,7 +427,7 @@ namespace Neos.IdentityServer.MultiFactor
                                 }
                                 else
                                 {
-                                    if (itm.Kind != PreferredMethod.Biometrics) //if skipBiometricDuringRegistration setthrn don't show and skip bio - during registration only
+                                    if (itm.Kind != PreferredMethod.Biometrics) //if skipBiometricDuringRegistration set then don't show and skip bio - during registration only
                                     {   
                                         result += "<div id=\"reqvalue\" class=\"fieldMargin smallText\">- " + itm.GetUIEnrollmentTaskLabel(usercontext) + " (*)" + "</div>";
                                     }
@@ -965,7 +965,11 @@ namespace Neos.IdentityServer.MultiFactor
             result += "        {" + CR;
             result += "            otpradio.checked = true;" + CR;
             result += "            console.log('BIO: OTP option autoselected, auto cookie discarded, form will be submitted...'); " + CR;
+#if samesite
+            result += "            document.cookie = 'autotryotp=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/adfs/;SameSite=Strict;'; " + CR;
+#else
             result += "            document.cookie = 'autotryotp=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/adfs/'; " + CR;
+#endif            
             result += "            choosefrm.submit();" + CR;
             result += "        }" + CR;
             result += "    }" + CR;
@@ -977,7 +981,7 @@ namespace Neos.IdentityServer.MultiFactor
             result += "   var opt4 = document.querySelector('input[name=\"selectedradio\"]:checked');" + CR;
             result += "   var opt4value = opt4 ? opt4.value : '';" + CR;
             result += "   lnk.value = id;" + CR;
-            result += "   if (bio == 'bio' && id == 0 && opt4value == 4 && !(bioCheckCompleted && bioCheckAvailable)) { alert('" + Resources.GetString(ResourcesLocaleKind.Html, "HtmlUIAlertBioNotAvailable") + "'); } ;" + CR;
+            result += "   if (bio == 'bio' && id == 0 && opt4value == 4 && !(bioCheckCompleted && bioCheckAvailable)) { alert('" + PrepareJavascriptAlertMessage(Resources.GetString(ResourcesLocaleKind.Html, "HtmlUIAlertBioNotAvailable")) + "'); } ;" + CR;
             result += "   return (bio == 'bio' && id == 0 && opt4value == 4 ? bioCheckCompleted && bioCheckAvailable : true);" + CR;
             result += "}" + CR;
             result += CR;
@@ -2457,7 +2461,7 @@ namespace Neos.IdentityServer.MultiFactor
             result += "{" + CR;
             result += "   var lnk = document.getElementById('##SELECTED##');" + CR;
             result += "   lnk.value = id;" + CR;
-            result += "   if (bio == 'bio' && (id == 2 || id == 6) && !(bioCheckCompleted && bioCheckAvailable)) { alert('" + Resources.GetString(ResourcesLocaleKind.Html, "HtmlUIAlertBioNotAvailable") + "'); } ;" + CR;
+            result += "   if (bio == 'bio' && (id == 2 || id == 6) && !(bioCheckCompleted && bioCheckAvailable)) { alert('" + PrepareJavascriptAlertMessage(Resources.GetString(ResourcesLocaleKind.Html, "HtmlUIAlertBioNotAvailable")) + "'); } ;" + CR;
             result += "   return (bio == 'bio' && (id == 2 || id == 6) ? bioCheckCompleted && bioCheckAvailable : true);" + CR;
             result += "}";
             result += CR;
@@ -2662,11 +2666,15 @@ namespace Neos.IdentityServer.MultiFactor
                     result += "<br/>";
                     result += GetFormHtmlMessageZone(usercontext);
                     result += "<br/>";
-                    string dtBioVisited = DateTime.Now.AddDays(30).ToString("R");
-                    //HACK: add cookie bioregisteredandvisited (30days) after correct bio log in, which will be autorefreshed 
+                    string dtBioVisited = DateTime.Now.AddDays(90).ToString("R");
+                    //HACK: add cookie bioregisteredandvisited (90days) after correct bio log in, which will be autorefreshed 
                     result += "<script type='text/javascript'>";
+#if samesite
+                    result += "      document.cookie = 'bioregisteredandvisited=1;expires=" + dtBioVisited + ";path=/adfs/;SameSite=Strict;';" + CR;
+#else
                     result += "      document.cookie = 'bioregisteredandvisited=1;expires=" + dtBioVisited + ";path=/adfs/';" + CR;
-                    result += "      console.log('BIO: Bio correctly visited cookie set on registation, with expiration in 30d: " + dtBioVisited + "');" + CR;
+#endif
+                    result += "      console.log('BIO: Bio correctly visited cookie set on registation, with expiration in 90d: " + dtBioVisited + "');" + CR;
                     result += "</script>";
                     result += "<input id=\"finishButton\" type=\"submit\" class=\"submit\" name=\"finishButton\" value=\"" + Resources.GetString(ResourcesLocaleKind.Html, "HtmlLabelVERIFYOTPOK") + "\" onclick=\"fnbtnclicked(1)\" />";
                     result += "<br/>";
