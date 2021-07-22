@@ -1183,7 +1183,7 @@ namespace Neos.IdentityServer.MultiFactor
         {
             if (!string.IsNullOrEmpty(message))
             {
-                message = message.Replace(Environment.NewLine, " ").Replace("\n", " ").Replace("\r", " ").Replace("'", "\'"); // space instead empty string for better reading
+                message = message.Replace(Environment.NewLine, " ").Replace("\n", " ").Replace("\r", " ").Replace("'", "\\'"); // space instead empty string for better reading
             }
             
             return message;
