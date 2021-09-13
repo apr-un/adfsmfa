@@ -487,7 +487,6 @@ namespace Neos.IdentityServer.MultiFactor
                                         }
                                     }
                                 }
-                                    
                             }
                         }
                         if (RuntimeAuthProvider.IsPinCodeRequired(usercontext))
